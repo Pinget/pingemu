@@ -1,13 +1,13 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <iostream>
+
+//#define DEBUG 0 
 
 typedef uint8_t byte;
 typedef uint16_t addr;
 typedef uint16_t operand_type;
 typedef uint8_t opcode_type;
-
-#define OP(func_name) \
-  void CPU::func_name(operand_type op)
 
 #define OP_DEC(func_name) \
   void func_name(operand_type op)
@@ -16,6 +16,11 @@ struct instruction
 {
   opcode_type opcode;
   operand_type operand;
+  instruction(opcode_type opc, operand_type opr)
+  {
+    opcode = opc;
+    operand = opr;
+  }
 };
 
 enum flag
@@ -61,7 +66,13 @@ private:
 
   // operators
 
+  bool check_flag(flag _flag);
+  bool is_accu_neg();
   void set_flag(flag _flag);
+  void step_PC_arithm(mode_type mode);
+  void print_registers();
+
+  // we store this so the ops can use it later without too much spaghettying
 
   OP_DEC(ORA); // bitwise or, accu.
   OP_DEC(AND);

@@ -2,26 +2,48 @@
 
 #define SET_ZN() \
     if (accumulator == 0) set_flag(zero); \
-    if (accumulator & negative) set_flag(negative);
+    if ( is_accu_neg() ) set_flag(negative);
+
+    #define OP(func_name) \
+  void CPU::func_name(operand_type op)
+
 
 CPU::CPU()
 {
-    accumulator = 0;
-    status = 0;
-    PC = 0;
+    accumulator = 0u;
+    status = 0u;
+    PC = 0u;
+    printf("CPU instanced");
+    print_registers();
 }
 
 instruction CPU::fetch(FILE* data)
 {
     byte bytes[3];
     fseek(data, PC, SEEK_SET);
-    fread(bytes,1,3,data);
-    return {bytes[0], (bytes[1] << 4) | bytes[2] };
+    size_t success = fread(bytes,1,3,data);
+    #ifdef DEBUG
+    for (int i = 0; i < 3; i++) printf("bytes:%x\n", bytes[i]);
+    printf("successfully read %d bytes\n", success);
+    #endif
+    for (size_t i = success; i < 3; i++) bytes[i] = 0x0;
+    operand_type operand = (bytes[1] << 8) | bytes[2];
+    return instruction{bytes[0], operand};
 }
 
-void CPU::set_flag(flag flag)
+void CPU::set_flag(flag _flag)
 {
-    status &= (0b1 << flag);
+    status |= (0b1 << _flag);
+}
+
+bool CPU::check_flag(flag _flag)
+{
+    return ( (status & _flag) == _flag);
+}
+
+bool CPU::is_accu_neg()
+{
+    return (accumulator & 0b10000000) == 0b10000000;
 }
 
 mode_type CPU::get_mode(opcode_type opcode)
@@ -54,11 +76,19 @@ uint16_t CPU::parse_operand(mode_type mode, operand_type operand)
     case zero_page: return memory[operand >> 4];
     case zero_page_x: return memory[(operand >> 4) + reg_X];
     case zero_page_y: return memory[(operand >> 4) + reg_Y];
-    case immediate: return operand;
-    default: immediate;
+    case immediate: return operand >> 8;
+    default: return immediate;
     }
 }
 
+//calculate the SP offset based on mode and then step it
+void CPU::step_PC_arithm(mode_type mode)
+{
+    uint8_t offset;
+    if (mode == absolute || mode == absolute_x || mode == absolute_y) offset = 3;
+    else offset = 2;
+    PC += offset;
+}
 
 //u dum fuck you now have to calculate how much the program counter is increased
 OP(ORA)
@@ -92,7 +122,7 @@ OP(STA) { memory[op] = accumulator; }
 
 OP(LDA) 
 {
-    accumulator = op;
+    accumulator = static_cast<byte>(op);
     SET_ZN();
 }
 
@@ -100,7 +130,7 @@ OP(CMP)
 {
     if (accumulator == op) set_flag(zero);
     if (accumulator >= op) set_flag(carry);
-    if (accumulator & negative) set_flag(negative);
+    if ( is_accu_neg() ) set_flag(negative);
 }
 
 OP(SBC)
@@ -115,25 +145,46 @@ OP(SBC)
     //????? overflow flag?? urm idk wtf im doing 
 }
 
+void CPU::print_registers()
+{
+    printf("A:%u, PC:%u, SP:%u, Status:%u\n", accumulator, PC, SP, status);
+}
+
 
 
 void CPU::execute(instruction instr)
 {
+    #ifdef DEBUG
+    printf("before execution:\n");
+    print_registers();
+    #endif
     //remember to increase PC by used bytes
     opcode_type opcode = instr.opcode;
     mode_type mode = get_mode(opcode);
     uint16_t operand = parse_operand(mode, instr.operand);
+    #ifdef DEBUG
+    printf("operand: %x\n", operand);
+    printf("mode: %x\n", mode);
+    #endif
+    printf("opcode:%x\n", opcode);
 
     uint8_t operation = opcode >> 5;
     switch (operation)
     {
-        case 0: ORA(operand);
-        case 1: AND(operand);
-        case 2: EOR(operand); 
-        case 3: ADC(operand); 
-        case 4: STA(operand); 
-        case 5: LDA(operand); 
-        case 6: CMP(operand); 
-        case 7: SBC(operand); 
+        case 0: ORA(operand); break;  
+        case 1: AND(operand); break; 
+        case 2: EOR(operand); break; 
+        case 3: ADC(operand); break; 
+        case 4: STA(operand); break; 
+        case 5: LDA(operand); break; 
+        case 6: CMP(operand); break; 
+        case 7: SBC(operand); break;
+        default: break; 
     }
+    //will have to change this for other funcs
+    step_PC_arithm(mode);
+    #ifdef DEBUG
+    printf("after execution:\n");
+    #endif
+    print_registers();
 }
