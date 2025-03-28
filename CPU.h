@@ -2,8 +2,6 @@
 #include <stdio.h>
 #include <iostream>
 
-//#define DEBUG 0 
-
 typedef uint8_t byte;
 typedef uint16_t addr;
 typedef uint16_t operand_type;
@@ -15,8 +13,8 @@ typedef uint8_t opcode_type;
   void CPU::func_name(mode_type mode, operand_type op)
 
 #define SET_ZN() \
-  if (accumulator == 0) set_flag(zero); \
-  if ( is_accu_neg() ) set_flag(negative);
+  if (implied == 0) set_flag(zero, true); \
+  if ( is_accu_neg() ) set_flag(negative, true);
 
 struct instruction
 {
@@ -50,7 +48,7 @@ enum mode_type
   absolute,
   absolute_y,
   absolute_x,
-  accumul
+  implied
   // indirect_x,
   // indirect_y
 };
@@ -59,7 +57,7 @@ class CPU
 {
 private:
   // registers
-  byte accumulator; // accumulator, for arithmetic and data transfer
+  byte reg_accu; // accumulator, for arithmetic and data transfer
   byte status;
   uint16_t PC = 0;
   byte SP = 0; //very much wrong
@@ -74,13 +72,14 @@ private:
   // operators
 
   bool check_flag(flag _flag);
-  void set_flag(flag _flag);
-  void unset_flag(flag _flag);
+  void set_flag(flag _flag, bool value);
   bool is_accu_neg();
+  byte* get_value_pointer(mode_type mode,operand_type op);
   void step_PC(mode_type mode);
   void print_registers();
   void run_cc_01(mode_type mode, uint8_t operation, uint16_t operand);
   void run_cc_10(mode_type mode, uint8_t operation, uint16_t operand);
+  void run_cc_00(mode_type mode, uint8_t operation, uint16_t operand);
 
   // we store this so the ops can use it later without too much spaghettying
 
@@ -107,6 +106,8 @@ public:
   CPU();
   instruction fetch(FILE *data);
   void execute(instruction instr);
+  uint16_t get_PC() {return PC;};
+  byte* get_memory() {return memory;};
   /* Instruction cycle
   Fetch
   Decode
