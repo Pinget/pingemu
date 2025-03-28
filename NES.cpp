@@ -12,12 +12,12 @@ int main(int argc, char* argv[])
 {
     std::cout << "Hello from Pingemu" << std::endl;
     FILE* file;
-    fopen_s(&file, argv[1], "r");
+    fopen_s(&file, argv[1] /*"lda_test.bin"*/, "r");
     if (!file) 
     {
         std::cout << "Invalid file pointer. Quitting"<< std::endl;
         return 0;
-    } else std::cout << "Opened file." << std::endl; 
+    } else printf("Opened file %s.", argv[1]); 
 
     cpu = new CPU();
     ppu = new PPU();
@@ -26,8 +26,6 @@ int main(int argc, char* argv[])
     while (!feof (file)) 
     {
         cpu->execute(cpu->fetch(file));
-    }
-    
-    
+    } 
 }
 
